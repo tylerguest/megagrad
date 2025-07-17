@@ -4,11 +4,9 @@ class Tensor:
 
   def __init__(self, data, shape=None):
     if isinstance(data, (int, float)):
-      # Scalar case
       self.data = [Value(data)]
       self.shape = ()
     elif isinstance(data, list):
-      # Handle nested lists for multi-dimensional tensors
       self.data = self._flatten_and_convert(data)
       self.shape = self._infer_shape(data) if shape is None else shape
     else: raise ValueError("Data must be a number or list")

@@ -13,4 +13,19 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
+    extras_require={
+        'test': [
+            'pytest>=6.0',
+            'pytest-cov>=2.0',
+            'torch>=1.8.0'  # For comparison tests
+        ],
+        'dev': [
+            'pytest>=6.0',
+            'pytest-cov>=2.0',
+            'torch>=1.8.0',
+            'jupyter>=1.0.0',
+            'black>=21.0',
+            'isort>=5.0'
+        ]
+    }
 )

@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="nanograd",
+    name="megagrad",
     version="0.0.1",
     author="Tyler Guest",
     description="A tiny scalar-valued autograd engine with a small PyTorch-like neural network library on top.",
@@ -17,7 +17,7 @@ setuptools.setup(
         'test': [
             'pytest>=6.0',
             'pytest-cov>=2.0',
-            'torch>=1.8.0'  # For comparison tests
+            'torch>=1.8.0'
         ],
         'dev': [
             'pytest>=6.0',

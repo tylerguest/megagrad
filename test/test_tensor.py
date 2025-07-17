@@ -1,7 +1,7 @@
 """Integration tests that match the testbook.ipynb examples"""
 import torch
-from nanograd.engine import Value
-from nanograd.tensor import Tensor
+from megagrad.engine import Value
+from megagrad.tensor import Tensor
 
 class TestAgainstPyTorch:
     def test_complex_expression_vs_pytorch(self):

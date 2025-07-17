@@ -1,4 +1,4 @@
-from nanograd.engine import Value
+from megagrad.engine import Value
 
 class Tensor:
 

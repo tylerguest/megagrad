@@ -1,12 +1,13 @@
 class Value:
   """ stores a single scalar value and its gradient"""
 
-  def __init__(self, data, _children=(), _op=''):
+  def __init__(self, data, _children=(), _op='', label=''):
     self.data = data
-    self.grad = 0
+    self.grad = type(data)()
     self._backward = lambda: None
     self._prev = set(_children)
     self._op = _op 
+    self.label = label
   
   def __add__(self, other):
     other = other if isinstance(other, Value) else Value(other)
@@ -48,7 +49,7 @@ class Value:
         for child in v._prev: build_topo(child)
         topo.append(v)
     build_topo(self)
-    self.grad = 1
+    self.grad = 1.0
     for v in reversed(topo): v._backward()
   
   def __neg__(self): return self * -1

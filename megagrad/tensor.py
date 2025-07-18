@@ -54,6 +54,35 @@ class Tensor:
     out._backward = _backward
     return out
   
+  def __matmul__(self, other):
+    other = other if isinstance(other, Tensor) else Tensor(other)
+    out = Tensor(self.data @ other.data, _children=(self, other), _op='@')
+    def _backward():
+      self.grad += out.grad @ other.data.T
+      other.grad += self.data.T @ out.grad
+    out._backward = _backward
+    return out
+  
+  def sum(self, axis=None, keepdims=False):
+    out = Tensor(self.data.sum(axis=axis, keepdims=keepdims), _children=(self,), _op='sum')
+    def _backward(): self.grad += np.ones_like(self.data) * out.grad
+    out._backward = _backward
+    return out
+  
+  def exp(self):
+    out = Tensor(np.exp(self.data), _children=(self,), _op='exp')
+    def _backward(): self.grad += np.exp(self.data) * out.grad
+    out._backward = _backward
+    return out
+    
+  def log(self):
+    out = Tensor(np.log(self.data), _children=(self,), _op='log')
+    def _backward(): self.grad += (1 / self.data) * out.grad
+    out._backward = _backward
+    return out
+  
+  def item(self): return self.data.item()
+
   def relu(self):
     out = Tensor(np.maximum(0, self.data), _children=(self,), _op='ReLU')
     def _backward(): self.grad += (out.data > 0) * out.grad
@@ -72,6 +101,7 @@ class Tensor:
     self.grad = np.ones_like(self.data)
     for v in reversed(topo): v._backward()
   
+  def zero_grad(self): self.grad = np.zeros_like(self.data)
   def numpy(self): return self.data
   def __iadd__(self, other): 
     other = other if isinstance(other, Tensor) else Tensor(other)

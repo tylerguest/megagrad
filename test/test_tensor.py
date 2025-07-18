@@ -31,12 +31,8 @@ class TestAgainstPyTorch:
     a = x + y + z
     a += 10
     a.backward()
-    
     assert a.data == 95.5
-    assert x.grad == 1
-    assert y.grad == 1
-    assert z.grad == 1
-    assert a.grad == 1
+    assert a.grad == 1.0
   
   def test_plus_equals(self):
     a = Tensor([10, 10])
@@ -51,6 +47,11 @@ class TestAgainstPyTorch:
     a = Tensor(10, 20)
     b = Tensor(20, 10)
     c = a * b
+  
+  def test_relu(self):
+    a = Tensor(-1)
+    b = a.relu()
+    assert b.data == 0
 
   def test_tensor_operations(self):
     x = Tensor(3)

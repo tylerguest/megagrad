@@ -1,6 +1,6 @@
 """Integration tests that match the testbook.ipynb examples"""
 import torch
-from megagrad.engine import Value
+from megagrad.tensor import Value
 from megagrad.tensor import Tensor
 
 class TestAgainstPyTorch:

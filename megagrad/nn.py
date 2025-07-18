@@ -1,5 +1,5 @@
 import random
-from megagrad.engine import Value
+from megagrad.tensor import Value
 
 class Module:
   def zero_grad(self):

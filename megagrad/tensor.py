@@ -1,90 +1,62 @@
-from megagrad.engine import Value
+class Value:
+  """ stores a single scalar value and its gradient"""
 
-class Tensor:
-
-  def __init__(self, data, shape=None):
-    if isinstance(data, (int, float)):
-      self.data = [Value(data)]
-      self.shape = ()
-    elif isinstance(data, list):
-      self.data = self._flatten_and_convert(data)
-      self.shape = self._infer_shape(data) if shape is None else shape
-    else: raise ValueError("Data must be a number or list")
-    
-  def _flatten_and_convert(self, data):
-    """Recursively flatten nested lists and convert to Value objects"""
-    if isinstance(data, (int, float)): return [Value(data)]
-    elif isinstance(data, list):
-      result = []
-      for item in data: result.extend(self._flatten_and_convert(item))
-      return result
-    else: raise ValueError("Invalid data type in tensor")
-
-  def _infer_shape(self, data):
-    """Infer shape from nested list structure"""
-    if isinstance(data, (int, float)): return ()
-    elif isinstance(data, list):
-      if not data: return (0,)
-      shape = [len(data)]
-      if isinstance(data[0], list):
-        shape.extend(self._infer_shape(data[0]))
-        return tuple(shape)
-      
-  def __getitem__(self, idx):
-    """Basic indexing for 1D tensors"""
-    if self.shape == ():
-      if idx != 0: raise IndexError("Scalar tensor only has index 0")
-      return self.data[0]
-    return self.data[idx]
+  def __init__(self, data, _children=(), _op='', label=''):
+    self.data = data
+    self.grad = 0.0
+    self._backward = lambda: None
+    self._prev = set(_children)
+    self._op = _op 
+    self.label = label
   
   def __add__(self, other):
-    """Element-wise addition"""
-    if isinstance(other, Tensor):
-      if self.shape != other.shape: raise ValueError(f"Shape mismatch: {self.shape} vs {other.shape}")
-      result_data = [a + b for a, b in zip(self.data, other.data)]
-    else: result_data = [val + other for val in self.data]
-    result = Tensor.__new__(Tensor)
-    result.data = result_data
-    result.shape = self.shape
-    return result 
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data + other.data, (self, other), '+')
+    def _backward():
+      self.grad += out.grad
+      other.grad += out.grad
+    out._backward = _backward
+    return out
   
   def __mul__(self, other):
-    """Element-wise multiplication"""
-    if isinstance(other, Tensor):
-      if self.shape != other.shape: raise ValueError(f"Shape mismatch: {self.shape} vs {other.shape}")
-      result_data = [a * b for a, b in zip(self.data, other.data)]
-    else: result_data = [val * other for val in self.data]
-    result = Tensor.__new__(Tensor)
-    result.data = result_data
-    result.shape = self.shape
-    return result
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data * other.data, (self, other), '*')
+    def _backward():
+      self.grad += other.data * out.grad
+      other.grad += self.data * out.grad
+    out._backward = _backward
+    return out
   
-  def sum(self):
-    """Sum all elements to a scalar Value"""
-    result = Value(0)
-    for val in self.data: result = result + val
-    return result
+  def __pow__(self, other):
+    assert isinstance(other, (int, float)), "only int/float powers for now"
+    out = Value(self.data**other, (self,), f'**{other}')
+    def _backward(): self.grad += (other * self.data**(other-1)) * out.grad
+    out._backward = _backward
+    return out
+  
+  def relu(self):
+    out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU')
+    def _backward(): self.grad += (out.data > 0) * out.grad
+    out._backward = _backward
+    return out
   
   def backward(self):
-    """Backward pass - only works for scalar tensors"""
-    if self.shape != (): raise ValueError("Can only call backward() on scalar tensors")
-    self.data[0].backward()
-
-  @property
-  def grad(self):
-    """Get gradients as a new tensor with same shape"""
-    grad_data = [val.grad for val in self.data]
-    result = Tensor.__new__(Tensor)
-    result.data = [Value(g) for g in grad_data]
-    result.shape = self.shape
-    return result
+    topo = []
+    visited = set()
+    def build_topo(v):
+      if v not in visited:
+        visited.add(v)
+        for child in v._prev: build_topo(child)
+        topo.append(v)
+    build_topo(self)
+    self.grad = 1.0
+    for v in reversed(topo): v._backward()
   
-  def zero_grad(self):
-    """Zero out all gradients"""
-    for val in self.data: val.grad = 0
-
-  def __repr__(self):
-    if self.shape == (): return f"Tensor({self.data[0].data}, shape={self.shape})"
-    else:
-      data_vals = [val.data for val in self.data]
-      return f"Tensor({data_vals}, shape={self.shape})"
+  def __neg__(self): return self * -1
+  def __radd__(self, other): return self + other
+  def __sub__(self, other): return self + (-other)
+  def __rsub__(self, other): return other + (-self)
+  def __rmul__(self, other): return self * other
+  def __truediv__(self, other): return self * other**-1
+  def __rtruediv__(self, other): return other * self**-1
+  def __repr__(self): return f"Value(data={self.data}, grad={self.grad})"

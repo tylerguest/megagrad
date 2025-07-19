@@ -60,7 +60,7 @@ class TestAgainstPyTorch:
     result.backward()
     
     assert result.shape == ()
-    assert result.data == 33  # 3*10 + 3 = 33
+    assert result.data == 33    # 3*10 + 3 = 33
     assert x.grad.item() == 11  # gradient is 10 + 1 = 11
     assert y.grad.item() == 3   # gradient is 3
 

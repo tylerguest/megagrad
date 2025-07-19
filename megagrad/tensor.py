@@ -2,14 +2,27 @@ import numpy as np
 import urllib.request
 import gzip, os
 
+def unbroadcast(grad, shape):
+    while len(grad.shape) > len(shape): grad = grad.sum(axis=0)
+    for i, dim in enumerate(shape):
+      if dim == 1: grad = grad.sum(axis=i, keepdims=True)
+    return grad
+
 class Tensor:
+  def _stack_backward(self):
+    for i, child in enumerate(self._prev):
+      child.grad += self.grad[i]
+  
   def __init__(self, data, *args, _children=(), _op='', label=''):
     if args: data = (data,) + args
     if isinstance(data, Tensor): data = data.data
     if isinstance(data, (list, tuple)) and all(isinstance(d, Tensor) for d in data): data = [d.data for d in data]
     self.data = np.array(data, dtype=float)
     self.grad = np.zeros_like(self.data)
-    self._backward = lambda: None
+    if _op == 'stack':
+      self._backward = self._stack_backward
+    else:
+      self._backward = lambda: None
     self._prev = set(_children)
     self._op = _op 
     self.label = label
@@ -19,8 +32,8 @@ class Tensor:
     other = other if isinstance(other, Tensor) else Tensor(other)
     out = Tensor(self.data + other.data, _children=(self, other), _op='+')
     def _backward():
-      self.grad += out.grad
-      other.grad += out.grad
+      self.grad += unbroadcast(out.grad, self.data.shape)
+      other.grad += unbroadcast(out.grad, other.data.shape)
     out._backward = _backward
     return out
   
@@ -38,7 +51,7 @@ class Tensor:
     out = Tensor(self.data * other.data, _children=(self, other), _op='*')
     def _backward():
       grad_self = other.data * out.grad
-      grad_other = self.data * out.data
+      grad_other = self.data * out.grad
       while grad_self.shape != self.grad.shape: grad_self = grad_self.sum(axis=0)
       while grad_other.shape != other.grad.shape: grad_other = grad_other.sum(axis=0)
       self.grad += grad_self
@@ -81,7 +94,7 @@ class Tensor:
       self.grad += grad
     out._backward = _backward
     return out
-  
+
   def astype(self, dtype):
     out = Tensor(self.data.astype(dtype), _children=(self,), _op='astype')
     def _backward(): self.grad += out.grad.astype(self.grad.dtype)

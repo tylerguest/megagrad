@@ -1,8 +1,12 @@
 import numpy as np
+import urllib.request
+import gzip, os
 
 class Tensor:
   def __init__(self, data, *args, _children=(), _op='', label=''):
     if args: data = (data,) + args
+    if isinstance(data, Tensor): data = data.data
+    if isinstance(data, (list, tuple)) and all(isinstance(d, Tensor) for d in data): data = [d.data for d in data]
     self.data = np.array(data, dtype=float)
     self.grad = np.zeros_like(self.data)
     self._backward = lambda: None
@@ -33,8 +37,12 @@ class Tensor:
     other = other if isinstance(other, Tensor) else Tensor(other)
     out = Tensor(self.data * other.data, _children=(self, other), _op='*')
     def _backward():
-      self.grad += other.data * out.grad
-      other.grad += self.data * out.grad
+      grad_self = other.data * out.grad
+      grad_other = self.data * out.data
+      while grad_self.shape != self.grad.shape: grad_self = grad_self.sum(axis=0)
+      while grad_other.shape != other.grad.shape: grad_other = grad_other.sum(axis=0)
+      self.grad += grad_self
+      other.grad += grad_other
     out._backward = _backward
     return out
   
@@ -63,6 +71,23 @@ class Tensor:
     out._backward = _backward
     return out
   
+  def __getitem__(self, idx):
+    data = self.data[idx]
+    data = np.squeeze(data)
+    out = Tensor(data, _children=(self,), _op='getitem')
+    def _backward():
+      grad = np.zeros_like(self.data)
+      grad[idx] = out.grad
+      self.grad += grad
+    out._backward = _backward
+    return out
+  
+  def astype(self, dtype):
+    out = Tensor(self.data.astype(dtype), _children=(self,), _op='astype')
+    def _backward(): self.grad += out.grad.astype(self.grad.dtype)
+    out._backward = _backward
+    return out
+
   def sum(self, axis=None, keepdims=False):
     out = Tensor(self.data.sum(axis=axis, keepdims=keepdims), _children=(self,), _op='sum')
     def _backward(): self.grad += np.ones_like(self.data) * out.grad
@@ -81,13 +106,54 @@ class Tensor:
     out._backward = _backward
     return out
   
+  def flatten(self, start_dim=0):
+    new_shape =(int(np.prod(self.data.shape[start_dim:])),) if start_dim == 0 else self.data.shape[:start_dim] + (-1,)
+    out = Tensor(self.data.reshape(new_shape), _children=(self,), _op='flatten')
+    def _backward(): self.grad += out.grad.reshape(self.data.shape)
+    out._backward = _backward
+    return out
+  
+  def argmax(self, axis=None): return int(np.argmax(self.data, axis=axis))
+
+  def mean(self, axis=None, keepdims=False):
+    out = Tensor(self.data.mean(axis=axis, keepdims=keepdims), _children=(self,), _op='mean')
+    def _backward():
+      n = self.data.size if axis is None else self.data.shape[axis]
+      self.grad += np.ones_like(self.data) * out.grad / n
+    out._backward = _backward
+    return out
+
   def item(self): return self.data.item()
+
+  def sequential(self, layers):
+    x = self
+    for layer in layers: x = layer(x)
+    return x
 
   def relu(self):
     out = Tensor(np.maximum(0, self.data), _children=(self,), _op='ReLU')
     def _backward(): self.grad += (out.data > 0) * out.grad
     out._backward = _backward
     return out
+  
+  @classmethod
+  def from_url(cls, url, gunzip=False):
+    fname = url.split("/")[-1]
+    if not os.path.exists(fname):
+      print(f"Downloading {fname}...")
+      urllib.request.urlretrieve(url, fname)
+    with open(fname, "rb") as f: data = f.read()
+    if gunzip: data = gzip.decompress(data)
+    arr = np.frombuffer(data, dtype=np.uint8)
+    return cls(arr)
+  
+  def reshape(self, *shape):
+    out = Tensor(self.data.reshape(*shape), _children=(self,), _op='reshape')
+    def _backward(): self.grad += out.grad.reshape(self.data.shape)
+    out._backward = _backward
+    return out
+  
+  def to(self, device=None): return self
   
   def backward(self):
     topo = []
@@ -119,6 +185,7 @@ class Tensor:
     other = other if isinstance(other, Tensor) else Tensor(other)
     self.data /= other.data
     return self
+  def __len__(self): return len(self.data)
   def __neg__(self): return self * -1
   def __radd__(self, other): return self + other
   def __sub__(self, other): return self + (-other)

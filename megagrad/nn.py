@@ -1,4 +1,5 @@
 import random
+import numpy as np
 from megagrad.tensor import Tensor
 
 class Module:
@@ -12,6 +13,7 @@ class Neuron(Module):
     self.b = Tensor(0)
     self.nonlin = nonlin
   def __call__(self, x):
+    if isinstance(x, Tensor): x = x.data
     act = sum((wi*xi for wi,xi in zip(self.w, x)), self.b)
     return act.relu() if self.nonlin else act
   def parameters(self): return self.w + [self.b]
@@ -21,7 +23,8 @@ class Layer(Module):
   def __init__(self, nin, nout, **kwargs): self.neurons = [Neuron(nin, **kwargs) for _ in range(nout)]
   def __call__(self, x):
     out = [n(x) for n in self.neurons]
-    return out[0] if len(out) == 1 else out
+    if len(out) == 1: return out[0]
+    else: return Tensor(np.array([o.data for o in out]))
   def parameters(self): return [p for n in self.neurons for p in n.parameters()]
   def __repr__(self): return f"Layer of [{', '.join(str(n) for n in self.neurons)}]"
 

@@ -328,11 +328,14 @@ class Tensor:
     return out
   
   def mean(self, axis=None, keepdims=False):
-    data = self.realize()
-    out = Tensor(data.mean(axis=axis, keepdims=keepdims), _children=(self,), _op='mean')
+    out = Tensor(self, _children=(self,), _op='mean', _lazy=True)
+    out._axis = axis
+    out._keepdims = keepdims
     def _backward():
-      n = data.size if axis is None else data.shape[axis]
-      self.grad += np.ones_like(data) * out.grad / n
+      self_data = self.realize()
+      if self.grad is None: self.grad = np.zeros_like(self_data)
+      n = self_data.size if axis is None else self_data.shape[axis]
+      self.grad += np.ones_like(self_data) * out.grad / n
     out._backward = _backward
     return out
 

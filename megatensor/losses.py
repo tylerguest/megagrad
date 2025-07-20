@@ -1,4 +1,4 @@
-from megagrad.tensor import Tensor
+from megatensor.tensor import Tensor
 import numpy as np
 
 def cross_entropy(logits: Tensor, target: int):

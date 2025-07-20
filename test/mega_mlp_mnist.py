@@ -1,7 +1,7 @@
-from megagrad.utils import mnist
-from megagrad.tensor import Tensor
-from megagrad.nn import MLP
-from megagrad.losses import cross_entropy
+from megatensor.utils import mnist
+from megatensor.tensor import Tensor
+from megatensor.nn import MLP
+from megatensor.losses import cross_entropy
 import numpy as np
 
 X_train, Y_train, X_test, Y_test = mnist()

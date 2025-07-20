@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from megagrad.tensor import Tensor
+from megatensor.tensor import Tensor
 
 class Module:
   def zero_grad(self):

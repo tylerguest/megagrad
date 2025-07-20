@@ -1,7 +1,7 @@
 import numpy as np
 import gzip
 import os
-from megagrad.tensor import Tensor
+from megatensor.tensor import Tensor
 
 def load_mnist(path=None, kind="train"):
   """Load MNIST data from `data/` directory by default"""

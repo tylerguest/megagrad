@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from megagrad.tensor import Tensor
+from megatensor.tensor import Tensor
 
 class TestAutograd(unittest.TestCase):
     def test_mul_sum_backward(self):

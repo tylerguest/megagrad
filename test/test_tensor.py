@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from megagrad.tensor import Tensor
+from megatensor.tensor import Tensor
 
 class TestAgainstPyTorch:
   def test_complex_expression_vs_pytorch(self):

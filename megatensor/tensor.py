@@ -16,128 +16,136 @@ class Tensor:
   def __init__(self, data, *args, _children=(), _op='', label='', _lazy=False):
     if args: data = (data,) + args
     if _lazy:
-      self.data = None
+      self._data = None
       self._left = data[0] if isinstance(data, tuple) and len(data) > 0 else data
       self._right = data[1] if isinstance(data, tuple) and len(data) > 1 else None
     else: 
       if isinstance(data, Tensor): data = data.data
       if isinstance(data, (list, tuple)) and all(isinstance(d, Tensor) for d in data): data = [d.data for d in data]
-      self.data = np.array(data, dtype=float)
-    self.grad = None if self.data is None else np.zeros_like(self.data)
+      self._data = np.array(data, dtype=float)
+    self.grad = None if self._data is None else np.zeros_like(self._data)
     if _op == 'stack': self._backward = self._stack_backward
     else: self._backward = lambda: None
     self._prev = set(_children)
     self._op = _op 
     self.label = label
-    self.shape = None if self.data is None else self.data.shape
+    self.shape = None if self._data is None else self._data.shape
+
+  @property
+  def data(self):
+    if self._data is None: return self.realize()
+    return self._data
+  
+  @data.setter
+  def data(self, value): self._data = value
   
   def realize(self):
-    if self.data is not None: return self.data
+    if self._data is not None: return self._data
     if self._op == '+':
       left = self._left.realize() if isinstance(self._left, Tensor) else self._left
       right = self._right.realize() if isinstance(self._right, Tensor) else self._right
-      self.data = left + right
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = left + right
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == '-':
       left = self._left.realize() if isinstance(self._left, Tensor) else self._left
       right = self._right.realize() if isinstance(self._right, Tensor) else self._right
-      self.data = left - right
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = left - right
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == '*':
       left = self._left.realize() if isinstance(self._left, Tensor) else self._left
       right = self._right.realize() if isinstance(self._right, Tensor) else self._right
-      self.data = left * right
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = left * right
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == '/':
       left = self._left.realize() if isinstance(self._left, Tensor) else self._left
       right = self._right.realize() if isinstance(self._right, Tensor) else self._right
-      self.data = left / right
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = left / right
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op.startswith('**'):
       base = self._left.realize() if hasattr(self, '_left') and isinstance(self._left, Tensor) else self._left
       power = float(self._op[2:]) if self._op.startswith('**') else None
-      self.data = base ** power
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = base ** power
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == '@':
       left = self._left.realize() if isinstance(self._left, Tensor) else self._left
       right = self._right.realize() if isinstance(self._right, Tensor) else self._right
-      self.data = left @ right
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = left @ right
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'sum':
       base = self._left.realize()
       axis = getattr(self, '_axis', None)
       keepdims = getattr(self, '_keepdims', False)
-      self.data = base.sum(axis=axis, keepdims=keepdims)
-      self.shape = () if np.isscalar(self.data) else self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = base.sum(axis=axis, keepdims=keepdims)
+      self.shape = () if np.isscalar(self._data) else self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'mean':
       base = self._left.realize()
       axis = getattr(self, '_axis', None)
       keepdims = getattr(self, '_keepdims', False)
-      self.data = base.mean(axis=axis, keepdims=keepdims)
-      self.shape = () if np.isscalar(self.data) else self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = base.mean(axis=axis, keepdims=keepdims)
+      self.shape = () if np.isscalar(self._data) else self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'exp':
       base = self._left.realize() if hasattr(self, '_left') and isinstance(self._left, Tensor) else self._left
-      self.data = np.exp(base)
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = np.exp(base)
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'log':
       base = self._left.realize() if hasattr(self, '_left') and isinstance(self._left, Tensor) else self._left
-      self.data = np.log(base)
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = np.log(base)
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'flatten':
       base = self._left.realize()
       axis = getattr(self, '_axis', None)
       keepdims = getattr(self, '_keepdims', False)
-      self.data = base.flatten(axis=axis, keepdims=keepdims)
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = base.flatten(axis=axis, keepdims=keepdims)
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'ReLU':
       base = self._left.realize() if hasattr(self, '_left') and isinstance(self._left, Tensor) else self._left
-      self.data = np.maximum(0, base)
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = np.maximum(0, base)
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'astype':
       base = self._left.realize()
       axis = getattr(self, '_axis', None)
       keepdims = getattr(self, '_keepdims', False)
-      self.data = base.astype(axis=axis, keepdims=keepdims)
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = base.astype(axis=axis, keepdims=keepdims)
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'reshape':
       base = self._left.realize()
       axis = getattr(self, '_axis', None)
       keepdims = getattr(self, '_keepdims', False)
-      self.data = base.reshape(axis=axis, keepdims=keepdims)
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = base.reshape(axis=axis, keepdims=keepdims)
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     if self._op == 'getitem':
       base = self._left.realize() if hasattr(self, '_left') and isinstance(self._left, Tensor) else self._left
-      self.data = np.squeeze(base[self._idx]) if hasattr(self, '_idx') else base
-      self.shape = self.data.shape
-      self.grad = np.zeros_like(self.data)
-      return self.data
+      self._data = np.squeeze(base[self._idx]) if hasattr(self, '_idx') else base
+      self.shape = self._data.shape
+      self.grad = np.zeros_like(self._data)
+      return self._data
     raise NotImplementedError(f"Lazy op {self._op} not implemented in realize()")
   
   
@@ -339,25 +347,25 @@ class Tensor:
     other = other if isinstance(other, Tensor) else Tensor(other)
     self.realize()
     other.realize()
-    self.data += other.data
+    self._data += other.data
     return self
   def __isub__(self, other):
     other = other if isinstance(other, Tensor) else Tensor(other)
     self.realize()
     other.realize()
-    self.data -= other.data
+    self._data -= other.data
     return self
   def __imul__(self, other):
     other = other if isinstance(other, Tensor) else Tensor(other)
     self.realize()
     other.realize()
-    self.data *= other.data
+    self._data *= other.data
     return self
   def __idiv__(self, other):
     other = other if isinstance(other, Tensor) else Tensor(other)
     self.realize()
     other.realize()
-    self.data /= other.data
+    self._data /= other.data
     return self
   def __len__(self): return len(self.data)
   def __neg__(self): return self * -1

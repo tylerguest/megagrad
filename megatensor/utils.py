@@ -4,7 +4,6 @@ import os
 from megatensor.tensor import Tensor
 
 def load_mnist(path=None, kind="train"):
-  """Load MNIST data from `data/` directory by default"""
   if path is None:
     data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
     path = os.path.abspath(data_dir)

@@ -9,10 +9,7 @@ def unbroadcast(grad, shape):
     return grad
 
 class Tensor:
-  def _stack_backward(self):
-    for i, child in enumerate(self._prev):
-      child.grad += self.grad[i]
-  
+  # initialization and core properties
   def __init__(self, data, *args, _children=(), _op='', label='', _lazy=False):
     if args: data = (data,) + args
     if _lazy:
@@ -38,7 +35,8 @@ class Tensor:
   
   @data.setter
   def data(self, value): self._data = value
-  
+
+  # lazy realization and data handling
   def realize(self):
     if self._data is not None: return self._data
     if self._op == '+':
@@ -148,7 +146,26 @@ class Tensor:
       return self._data
     raise NotImplementedError(f"Lazy op {self._op} not implemented in realize()")
   
+  @classmethod
+  def from_url(cls, url, gunzip=False):
+    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
+    data_dir = os.path.abspath(data_dir)
+    if not os.path.exists(data_dir): os.makedirs(data_dir)
+    fname = url.split("/")[-1]
+    fpath = os.path.join(data_dir, fname)
+    if not os.path.exists(fpath):
+      print(f"Downloading {fname} to {fpath}...")
+      urllib.request.urlretrieve(url, fpath)
+    with open(fpath, "rb") as f: data = f.read()
+    if gunzip: data = gzip.decompress(data)
+    arr = np.frombuffer(data, dtype=np.uint8)
+    return cls(arr)
   
+  def to(self, device=None): return self
+  def item(self): return self.realize().item()
+  def numpy(self): return self.realize()
+  
+  # operator overloads
   def __add__(self, other):
     other = other if isinstance(other, Tensor) else Tensor(other)
     out = Tensor((self, other), _children=(self, other), _op='+', _lazy=True)
@@ -240,13 +257,65 @@ class Tensor:
       self.grad += grad
     out._backward = _backward
     return out
+  
+  def __iadd__(self, other): 
+    other = other if isinstance(other, Tensor) else Tensor(other)
+    self.realize()
+    other.realize()
+    self._data += other.data
+    return self
+  
+  def __isub__(self, other):
+    other = other if isinstance(other, Tensor) else Tensor(other)
+    self.realize()
+    other.realize()
+    self._data -= other.data
+    return self
+  
+  def __imul__(self, other):
+    other = other if isinstance(other, Tensor) else Tensor(other)
+    self.realize()
+    other.realize()
+    self._data *= other.data
+    return self
+  
+  def __idiv__(self, other):
+    other = other if isinstance(other, Tensor) else Tensor(other)
+    self.realize()
+    other.realize()
+    self._data /= other.data
+    return self
+  
+  def __len__(self): return len(self.data)
+  def __neg__(self): return self * -1
+  def __radd__(self, other): return self + other
+  def __sub__(self, other): return self + (-other)
+  def __rsub__(self, other): return other + (-self)
+  def __rmul__(self, other): return self * other
+  def __truediv__(self, other): return self * other**-1
+  def __rtruediv__(self, other): return other * self**-1
+  def __repr__(self): return f"Tensor(shape={self.shape}, data={self.data}, grad={self.grad})"
 
-  def astype(self, dtype):
-    out = Tensor(self.realize().astype(dtype), _children=(self,), _op='astype')
-    def _backward(): self.grad += out.grad.astype(self.grad.dtype)
-    out._backward = _backward
-    return out
+  # autograd and backward pass
+  def _stack_backward(self):
+    for i, child in enumerate(self._prev):
+      child.grad += self.grad[i]
 
+  def backward(self):
+    topo = []
+    visited = set()
+    def build_topo(v):
+      if v not in visited:
+        visited.add(v)
+        for child in v._prev: build_topo(child)
+        topo.append(v)
+    build_topo(self)
+    self.grad = np.ones_like(self.realize())
+    for v in reversed(topo): v._backward()
+
+  def zero_grad(self): self.grad = np.zeros_like(self.realize())
+
+  # tensor operations
   def sum(self, axis=None, keepdims=False):
     out = Tensor(self, _children=(self,), _op='sum', _lazy=True)
     out._axis = axis
@@ -258,6 +327,15 @@ class Tensor:
     out._backward = _backward
     return out
   
+  def mean(self, axis=None, keepdims=False):
+    data = self.realize()
+    out = Tensor(data.mean(axis=axis, keepdims=keepdims), _children=(self,), _op='mean')
+    def _backward():
+      n = data.size if axis is None else data.shape[axis]
+      self.grad += np.ones_like(data) * out.grad / n
+    out._backward = _backward
+    return out
+
   def exp(self):
     out = Tensor(np.exp(self.realize()), _children=(self,), _op='exp')
     def _backward(): self.grad += np.exp(self.realize()) * out.grad
@@ -278,46 +356,6 @@ class Tensor:
     out._backward = _backward
     return out
   
-  def mean(self, axis=None, keepdims=False):
-    data = self.realize()
-    out = Tensor(data.mean(axis=axis, keepdims=keepdims), _children=(self,), _op='mean')
-    def _backward():
-      n = data.size if axis is None else data.shape[axis]
-      self.grad += np.ones_like(data) * out.grad / n
-    out._backward = _backward
-    return out
-  
-  def argmax(self, axis=None): return int(np.argmax(self.realize(), axis=axis))
-  
-  def zero_grad(self): self.grad = np.zeros_like(self.realize())
-
-  def sequential(self, layers):
-    x = self
-    for layer in layers: x = layer(x)
-    return x
-
-  def relu(self):
-    data = self.realize()
-    out = Tensor(np.maximum(0, data), _children=(self,), _op='ReLU')
-    def _backward(): self.grad += (out.data > 0) * out.grad
-    out._backward = _backward
-    return out
-  
-  @classmethod
-  def from_url(cls, url, gunzip=False):
-    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
-    data_dir = os.path.abspath(data_dir)
-    if not os.path.exists(data_dir): os.makedirs(data_dir)
-    fname = url.split("/")[-1]
-    fpath = os.path.join(data_dir, fname)
-    if not os.path.exists(fpath):
-      print(f"Downloading {fname} to {fpath}...")
-      urllib.request.urlretrieve(url, fpath)
-    with open(fpath, "rb") as f: data = f.read()
-    if gunzip: data = gzip.decompress(data)
-    arr = np.frombuffer(data, dtype=np.uint8)
-    return cls(arr)
-  
   def reshape(self, *shape):
     data = self.realize()
     out = Tensor(data.reshape(*shape), _children=(self,), _op='reshape')
@@ -325,54 +363,23 @@ class Tensor:
     out._backward = _backward
     return out
   
-  def backward(self):
-    topo = []
-    visited = set()
-    def build_topo(v):
-      if v not in visited:
-        visited.add(v)
-        for child in v._prev: build_topo(child)
-        topo.append(v)
-    build_topo(self)
-    self.grad = np.ones_like(self.realize())
-    for v in reversed(topo): v._backward()
-
-  def to(self, device=None): return self
-
-  def item(self): return self.realize().item()
+  def argmax(self, axis=None): return int(np.argmax(self.realize(), axis=axis))
   
-  def numpy(self): return self.realize()
+  def relu(self):
+    data = self.realize()
+    out = Tensor(np.maximum(0, data), _children=(self,), _op='ReLU')
+    def _backward(): self.grad += (out.data > 0) * out.grad
+    out._backward = _backward
+    return out
   
-  def __iadd__(self, other): 
-    other = other if isinstance(other, Tensor) else Tensor(other)
-    self.realize()
-    other.realize()
-    self._data += other.data
-    return self
-  def __isub__(self, other):
-    other = other if isinstance(other, Tensor) else Tensor(other)
-    self.realize()
-    other.realize()
-    self._data -= other.data
-    return self
-  def __imul__(self, other):
-    other = other if isinstance(other, Tensor) else Tensor(other)
-    self.realize()
-    other.realize()
-    self._data *= other.data
-    return self
-  def __idiv__(self, other):
-    other = other if isinstance(other, Tensor) else Tensor(other)
-    self.realize()
-    other.realize()
-    self._data /= other.data
-    return self
-  def __len__(self): return len(self.data)
-  def __neg__(self): return self * -1
-  def __radd__(self, other): return self + other
-  def __sub__(self, other): return self + (-other)
-  def __rsub__(self, other): return other + (-self)
-  def __rmul__(self, other): return self * other
-  def __truediv__(self, other): return self * other**-1
-  def __rtruediv__(self, other): return other * self**-1
-  def __repr__(self): return f"Tensor(shape={self.shape}, data={self.data}, grad={self.grad})"
+  def sequential(self, layers):
+    x = self
+    for layer in layers: x = layer(x)
+    return x
+  
+  def astype(self, dtype):
+    out = Tensor(self.realize().astype(dtype), _children=(self,), _op='astype')
+    def _backward(): self.grad += out.grad.astype(self.grad.dtype)
+    out._backward = _backward
+    return out
+  

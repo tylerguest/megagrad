@@ -1,21 +1,16 @@
 from megagrad.utils import mnist
 from megagrad.tensor import Tensor
+from megagrad.nn import MLP
+from megagrad.losses import cross_entropy
 import numpy as np
 
 X_train, Y_train, X_test, Y_test = mnist()
-X_train = X_train.numpy().astype(np.float32) / 255.0
-X_test = X_test.numpy().astype(np.float32) / 255.0
-Y_train = Y_train.numpy()
-Y_test = Y_test.numpy()
-X_train = X_train[:10]
+X_train = (X_train / 255.0)[:10]
 Y_train = Y_train[:10]
-X_test = X_test[:20]
+X_test = (X_test / 255.0)[:20]
 Y_test = Y_test[:20]
 
-from megagrad.nn import MLP
 model = MLP(28*28, [128, 64, 10])
-
-from megagrad.losses import cross_entropy
 lr = 0.01
 epochs = 1
 

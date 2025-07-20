@@ -1,11 +1,13 @@
 import numpy as np
 import gzip
 import os
-import urllib.request
 from megagrad.tensor import Tensor
 
-def load_mnist(path=".", kind="train"):
-  """Load MNIST data from `path`"""
+def load_mnist(path=None, kind="train"):
+  """Load MNIST data from `data/` directory by default"""
+  if path is None:
+    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
+    path = os.path.abspath(data_dir)
   labels_path = os.path.join(path, f'{kind}-labels-idx1-ubyte.gz')
   images_path = os.path.join(path, f'{kind}-images-idx3-ubyte.gz')
   with gzip.open(labels_path, 'rb') as lbpath:

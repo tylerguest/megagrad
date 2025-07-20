@@ -2,15 +2,13 @@ from megagrad.utils import mnist
 from megagrad.tensor import Tensor
 import numpy as np
 
-
-# Use a small subset for quick testing
 X_train, Y_train, X_test, Y_test = mnist()
 X_train = X_train.numpy().astype(np.float32) / 255.0
 X_test = X_test.numpy().astype(np.float32) / 255.0
 Y_train = Y_train.numpy()
 Y_test = Y_test.numpy()
-X_train = X_train[:100]
-Y_train = Y_train[:100]
+X_train = X_train[:10]
+Y_train = Y_train[:10]
 X_test = X_test[:20]
 Y_test = Y_test[:20]
 
@@ -32,22 +30,18 @@ for epoch in range(epochs):
         loss = cross_entropy(out, y)
         model.zero_grad()
         loss.backward()
-        for p in model.parameters():
-            p.data -= lr * p.grad
+        for p in model.parameters(): p.data -= lr * p.grad
         total_loss += loss.item()
         if out.argmax() == y: correct += 1
         print(f"Training step {i+1}/{len(X_train)}: loss={loss.item():.4f}, acc={correct/(i+1):.4f}")
-        if (i+1) % 10 == 0:
-            print(f"    [Progress] Train step {i+1}/{len(X_train)} loss: {total_loss/(i+1):.4f} acc: {correct/(i+1):.4f}")
     print(f"=== Epoch {epoch+1} end: Train loss {total_loss/len(X_train):.4f}, acc {correct/len(X_train):.4f} ===\n")
 
 print("\n=== Starting test loop ===")
 correct = 0
 for i in range(len(X_test)):
-    print(f"  Test step {i+1}/{len(X_test)}: start")
-    x = X_test[i]
+    x = X_test[i].reshape(-1)
     y = int(Y_test[i].item())
     out = model(Tensor(x))
     if out.argmax() == y: correct += 1
-    print(f"  Test step {i+1}/{len(X_test)}: end, current acc={correct/(i+1):.4f}")
+    print(f"Test step {i+1}/{len(X_test)}: current acc={correct/(i+1):.4f}")
 print(f"=== Test accuracy: {correct/len(X_test):.4f} ===\n")

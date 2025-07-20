@@ -4,7 +4,7 @@ import gzip, os
 
 def unbroadcast(grad, shape):
     while len(grad.shape) > len(shape): grad = grad.sum(axis=0)
-    for i, dim in enumerate(shape):
+    for i, dim in enumerate(shape): 
       if dim == 1: grad = grad.sum(axis=i, keepdims=True)
     return grad
 
@@ -19,10 +19,8 @@ class Tensor:
     if isinstance(data, (list, tuple)) and all(isinstance(d, Tensor) for d in data): data = [d.data for d in data]
     self.data = np.array(data, dtype=float)
     self.grad = np.zeros_like(self.data)
-    if _op == 'stack':
-      self._backward = self._stack_backward
-    else:
-      self._backward = lambda: None
+    if _op == 'stack': self._backward = self._stack_backward
+    else: self._backward = lambda: None
     self._prev = set(_children)
     self._op = _op 
     self.label = label
@@ -151,11 +149,17 @@ class Tensor:
   
   @classmethod
   def from_url(cls, url, gunzip=False):
+    # Download to data/ directory
+    data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
+    data_dir = os.path.abspath(data_dir)
+    if not os.path.exists(data_dir):
+      os.makedirs(data_dir)
     fname = url.split("/")[-1]
-    if not os.path.exists(fname):
-      print(f"Downloading {fname}...")
-      urllib.request.urlretrieve(url, fname)
-    with open(fname, "rb") as f: data = f.read()
+    fpath = os.path.join(data_dir, fname)
+    if not os.path.exists(fpath):
+      print(f"Downloading {fname} to {fpath}...")
+      urllib.request.urlretrieve(url, fpath)
+    with open(fpath, "rb") as f: data = f.read()
     if gunzip: data = gzip.decompress(data)
     arr = np.frombuffer(data, dtype=np.uint8)
     return cls(arr)

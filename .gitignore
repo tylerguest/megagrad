@@ -126,3 +126,7 @@ Desktop.ini
 # *.pth
 # checkpoints/
 # models/
+
+# Ignore dataset files and data directory
+data/
+*.gz

@@ -1,4 +1,3 @@
-"""Integration tests that match the testbook.ipynb examples"""
 import torch
 import numpy as np
 from megagrad.tensor import Tensor
@@ -60,9 +59,17 @@ class TestAgainstPyTorch:
     result.backward()
     
     assert result.shape == ()
-    assert result.data == 33    # 3*10 + 3 = 33
-    assert x.grad.item() == 11  # gradient is 10 + 1 = 11
-    assert y.grad.item() == 3   # gradient is 3
+    assert result.data == 33    
+    assert x.grad.item() == 11  
+    assert y.grad.item() == 3  
+
+  def test_matmul(self):
+    a = Tensor([[1,2], [3,4]])
+    b = Tensor([[5,6], [7,8]])
+    c = a @ b
+    excepted = np.array([[19,22], [43,50]])
+    np.testing.assert_allclose(c.data, excepted)
+    c.sum().backward()
 
 def test_repr_fix():
   v = Tensor(5.0)

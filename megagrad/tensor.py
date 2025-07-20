@@ -149,7 +149,6 @@ class Tensor:
   
   @classmethod
   def from_url(cls, url, gunzip=False):
-    # Download to data/ directory
     data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
     data_dir = os.path.abspath(data_dir)
     if not os.path.exists(data_dir):

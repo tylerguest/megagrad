@@ -15,7 +15,7 @@ lr = 0.01
 epochs = 1
 
 for epoch in range(epochs):
-    print(f"\n=== Epoch {epoch+1} start ===")
+    print(f"\n------ Epoch {epoch+1} start ------")
     correct = 0
     total_loss = 0
     for i in range(len(X_train)):
@@ -29,9 +29,9 @@ for epoch in range(epochs):
         total_loss += loss.item()
         if out.argmax() == y: correct += 1
         print(f"Training step {i+1}/{len(X_train)}: loss={loss.item():.4f}, acc={correct/(i+1):.4f}")
-    print(f"=== Epoch {epoch+1} end: Train loss {total_loss/len(X_train):.4f}, acc {correct/len(X_train):.4f} ===\n")
+    print(f"------ Epoch {epoch+1} end: Train loss {total_loss/len(X_train):.4f}, acc {correct/len(X_train):.4f} ------\n")
 
-print("\n=== Starting test loop ===")
+print("\n------ Starting test loop ------")
 correct = 0
 for i in range(len(X_test)):
     x = X_test[i].reshape(-1)
@@ -39,4 +39,4 @@ for i in range(len(X_test)):
     out = model(Tensor(x))
     if out.argmax() == y: correct += 1
     print(f"Test step {i+1}/{len(X_test)}: current acc={correct/(i+1):.4f}")
-print(f"=== Test accuracy: {correct/len(X_test):.4f} ===\n")
+print(f"------ Test accuracy: {correct/len(X_test):.4f} ------\n")

@@ -2,12 +2,6 @@ import numpy as np
 import urllib.request
 import gzip, os
 
-def unbroadcast(grad, shape):
-    while len(grad.shape) > len(shape): grad = grad.sum(axis=0)
-    for i, dim in enumerate(shape): 
-      if dim == 1: grad = grad.sum(axis=i, keepdims=True)
-    return grad
-
 class Tensor:
   # initialization and core properties
   def __init__(self, data, *args, _children=(), _op='', label='', _lazy=False):
@@ -175,8 +169,18 @@ class Tensor:
       other_data = other.realize()
       if self.grad is None: self.grad = np.zeros_like(self_data)
       if other.grad is None: other.grad = np.zeros_like(other_data)
-      self.grad += unbroadcast(out.grad, self_data.shape)
-      other.grad += unbroadcast(out.grad, other_data.shape)
+      grad_self = out.grad
+      grad_other = out.grad
+      while grad_self.ndim > self_data.ndim:
+        grad_self = grad_self.sum(axis=0)
+      for axis, size in enumerate(self_data.shape):
+        if size == 1: grad_self = grad_self.sum(axis=axis, keepdims=True)
+      while grad_other.ndim > other_data.ndim:
+        grad_other = grad_other.sum(axis=0)
+      for axis, size in enumerate(other_data.shape):
+        if size == 1: grad_other = grad_other.sum(axis=axis, keepdims=True)
+      self.grad += grad_self
+      other.grad += grad_other
     out._backward = _backward
     return out
   

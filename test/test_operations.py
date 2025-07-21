@@ -9,6 +9,38 @@ class TestTensorOperations(unittest.TestCase):
     c = a + b
     np.testing.assert_allclose(c.data, [5, 7, 9])
 
+  def test_add_broadcast_backward_axis0(self):
+    a = Tensor(np.ones((2, 3)))
+    b = Tensor(np.ones((1, 3)))
+    c = a + b
+    c.backward()
+    self.assertTrue(np.allclose(a.grad, np.ones((2, 3))))
+    self.assertTrue(np.allclose(b.grad, np.ones((1, 3)) * 2))
+
+  def test_add_broadcast_backward_axis1(self):
+    a = Tensor(np.ones((2, 3)))
+    b = Tensor(np.ones((2, 1)))
+    c = a + b
+    c.backward()
+    self.assertTrue(np.allclose(a.grad, np.ones((2, 3))))
+    self.assertTrue(np.allclose(b.grad, np.ones((2, 1)) * 3))
+
+  def test_add_broadcast_backward_both_axes(self):
+    a = Tensor(np.ones((2, 3)))
+    b = Tensor(np.ones((1, 1)))
+    c = a + b
+    c.backward()
+    self.assertTrue(np.allclose(a.grad, np.ones((2, 3))))
+    self.assertTrue(np.allclose(b.grad, np.ones((1, 1)) * 6))
+  
+  def test_add_scalar_backward(self):
+    a = Tensor(np.ones((2, 3)))
+    b = Tensor(5.0)
+    c = a + b
+    c.backward()
+    self.assertTrue(np.allclose(a.grad, np.ones((2, 3))))
+    self.assertTrue(np.allclose(b.grad, np.ones(()) * 6))
+
   def test_sub(self):
     a = Tensor([5, 7, 9])
     b = Tensor([1, 2, 3])
